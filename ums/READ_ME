@@ -1,0 +1,120 @@
+ ums.pl - user management script
+---------------------------------
+
+Skrypt ums.pl s³u¿y do dodawania i usuwania userów. Dodawanie
+jest na tyle wygodne, ¿e opiera siê na przygotowanym szablonie.
+Usuwanie, to tylko wpisanie grupy i nazwy usera. Nic dodaæ, 
+nic uj±æ. A teraz bardziej szczegó³owo..
+
+1. Rozpoczynanie pracy
+Przegraj gdziekolwiek plik ums.pl, upewnij siê, ¿e posiadasz w
+systemie:
+  useradd, userdel, setquota, openssl, chattr, rm
+
+W skrypcie w sekcji CONFIGURATION mo¿esz ustawiæ ¶cie¿ki do ww.
+programów zmieniaj±c warto¶ci zmiennych zaczynaj±cych siê od $cmd_ .
+
+Teraz kilka s³ów o konfiguracji:
+
+my $c_TempDir    = './templates/';
+my $c_PasswdFile = '/etc/passwd';
+my $c_GroupFile  = '/etc/group';
+my $c_hdModes    = 711;
+my $c_wdModes    = 755;
+my $c_quotaFS    = '/';
+
+S±dzê, ¿e to zrozumia³e, ale opiszê..
+
+ $c_TempDir - folder z szablonami, na podstawie których dodawani s±
+              userzy (wiêcej szablonach trochê ni¿ej).
+ $c_PasswdFile i $c_GroupFile - ¶cie¿ki do pliku passwd i group,
+                                które zawieraj± istotne dane (jakie - wiadomo).
+ $c_hdModes i $c_wdModes - uprawnianie dla katalogów (odpowiednio) u¿ytkownika
+                           i stron www.
+ $c_quotaFS - system plików, na których uruchomiona jest quota.
+
+Tyle o zmiennych. Teraz szablony.
+Przyk³adowy szablon `testums`:
+ GID: 4000
+ UIDFROM: 4000
+ UIDTO: 4999
+ HOMEDIR: /home/users/testums/
+ WWWDIR: www
+ SHELL: /bin/bash
+ QUOTA: 15
+ QUOTATOLERANCE: 10
+ MAXNODES: 500
+ MAXNODESTOLERANCE: 10
+
+UWAGA: nazwa grupy u¿ytkowników, dla której jest robiony szablon i nazwa pliku,
+       musz± byæ takie same, czyli je¶li mamy grupê testums to plik z szablonem
+       musi mieæ równie¿ nazwê testums.
+
+A propos sk³adni.. Pierwsza pozycja od nowej linii zaczyna siê nazw± zmiennej,
+nastêpnie ':' i warto¶æ zmiennej, która mo¿e zawieraæ cyfry, litery i znak '/'.
+Linia ze zmienn± musi koñczyæ siê znakiem nowej linii.
+Je¶li nie bêd± spe³nione te warunku, wówczas skrypt przerwie swoje dzia³anie.
+
+Ok, teraz o szablonie. Jak widaæ jest bardzo prosty - nazwa zmiennej i warto¶æ.
+ GID - numer gid grupy, dla której tworzony jest szablon.
+ UIDFROM - od jakiego numeru przypisywaæ uidy u¿ytkownikom.
+ UIDTO - maksymalny uid dla u¿ytkownika z tej grupy.
+ HOMEDIR - katalog domowy u¿ytkownika.
+ WWWDIR - katalog, w którym bêdzie przechowywa³ pliki www.
+ SHELL - ¶cie¿ka do pow³oki systemowej.
+ QUOTA - limit przestrzeni dyskowej wyra¿ony w MB (soft limit).
+ QUOTATOLERANCE - ilo¶æ w procentach, która zostanie dodana do QUOTY, aby ustawiæ
+                  hard limit (10 = 10%, czyli je¶li quota wynosi 15MB, to hard limit
+                  wyniesie 16,5MB).
+ MAXNODES - maksymalna liczba plików, które mo¿e mieæ w swoim katalogu u¿ytkownik.
+ MAXNODESTOLERANCE - sytuacja taka sama, jak z quot±, czyli liczba x procent, która
+                     zostanie dodana do MAXNODES, aby ustawiæ hard limit.
+
+
+
+2. U¿ywanie..
+
+Zanim zaczniemy dodawaæ nowych userów oczywi¶cie musimy przygotowaæ szablon, ale nie
+mo¿na zapomnieæ o stworzeniu nowej grupy i katalogu dla niej:
+
+  # groupadd -g 4000 testums
+  # mkdir /home/users/testums
+  # chown root.testums /home/users/testums
+  # chmod 711 /home/users/testums
+
+Teraz mo¿na ju¿ bez problemu dodawaæ nowych userów:
+
+ ./ums.pl -t type -(a|d) username [-T] [-v] [-h]
+
+        -t      : typ u¿ytkownika, a w³a¶ciwie grupa/szablon
+        -a      : ustawia nazwê nowego u¿ytkownika
+        -d      : usuwa u¿ytkownika na podstawie podanej nazwy
+        -T      : sprawdza sk³adniê szablonu (nale¿y u¿yæ równie¿ opcji -t)
+        -v      : verbose mode, czyli poinformuje nas, co w tej chwili robi
+        -h      : pomoc..
+
+Przyk³ady:
+
+  a. sprawdzenie sk³adni: ./ums.pl -T -t testums
+  b. dodanie nowego u¿ytkownika: ./ums.pl -v -a ktos -t testums
+  c. usuwanie u¿ytkownika: ./ums.pl -t testums -d ktos -v
+
+
+A jakie has³o? Hm, takie, jakie bêdzie widoczne w polu `random passowrd`, które
+zwróci skrypt. Has³o jest stworzone z 6 cyfr (0-9) i kodowane do odpowiedniej dla
+uniksa postaci przy pomocy programu openssl.
+
+
+3. Podsumowanie
+
+Skrypt zosta³ napisany w dosyæ szybkim tempie. Z moich na prêdce przeprowadzonych
+testów wynika, ¿e dzia³a poprawnie, jednak wdziêczny bêdê za wszelkie informacje
+dot. dzia³ania.
+ums'a napisa³em wy³±cznie dla wygody nie zwracaj±c uwagi na rozbudowan± funkcjonalno¶æ -
+- mo¿e w przysz³o¶ci.
+I to by by³o na tyle...
+
+$ logout
+
+--------------------------------------------
+kontakt: foristh@IRCNet, foristh@Upnet, mlski[at]wp[dot]pl

@@ -1,0 +1,207 @@
+#!/usr/bin/perl -w
+# ums - users management script
+# Author: Michal 'foristh' Lewandowski
+# (C) 2008
+#
+use strict;
+
+###################
+## CONFIGURATION ##
+###################
+
+my $c_TempDir    = '/etc/umstemplates/';
+my $c_PasswdFile = '/etc/passwd';
+my $c_GroupFile  = '/etc/group';
+my $c_hdModes    = 711;
+my $c_wdModes    = 755;
+my $c_quotaFS    = '/';
+
+my $cmd_useradd  = '/usr/sbin/useradd';
+my $cmd_userdel  = '/usr/sbin/userdel';
+my $cmd_setquota = '/usr/sbin/setquota';
+my $cmd_openssl  = '/usr/bin/openssl';
+my $cmd_chattr   = '/usr/bin/chattr';
+my $cmd_rm       = '/bin/rm -rf';
+
+##################################
+## DO NOT CHANGE ANYTHING BELOW ##
+##   it's only kind advice ;)   ##
+##################################
+use vars qw / %opt /;
+my (%u,$checkSyntax,$checkUser,$checkGroup);
+
+sub init {
+  my @_required_soft = ('useradd','userdel','setquota','openssl');
+  my $_cnt = 0;
+  for my $_p (@_required_soft) {
+     my $_checkpath = `which $_p`; chomp($_checkpath);
+     if (!-e $_checkpath) { ++$_cnt; print "\n ERROR($_cnt): $_p doesn\'t exist!\n"; }
+  }
+  if ($_cnt>0) {
+     print "\n  If you see this message it means you don\'t have required software installed.\n",
+           "  Read README first and then run ums.\n\n";
+     exit;
+  }
+  if (!-e $c_TempDir) { print "\n ERROR: TempDir ($c_TempDir) doesn\'t exist.\n\n"; exit; }
+  use Getopt::Std;
+  my $opts = 'hvTt:a:d:';
+  getopts("$opts", \%opt) or usage();
+  usage() if $opt{h};
+}
+init();
+
+sub usage {
+ print STDERR << "EOF";
+
+   Usage: $0 -t type -(a|d) username [-T] [-v] [-h]
+
+	-t	: type of user (specified by template file)
+	-a	: add user with username
+	-d	: delete user with username
+	-T	: test template - check syntax
+	-v	: verbose mode
+	-h	: this (help) message
+
+
+  More info about UMS see README.
+
+EOF
+ exit;
+}
+
+sub readTemplate {
+   open(TEMPLATE, "<${c_TempDir}$opt{t}") or
+     die "\n  ERROR: Can\'t read a template for usertype: $opt{t}\n  Are you sure you\'ve created proper template?\n\n";
+   my @_readTemplate = readline(*TEMPLATE);
+   close(TEMPLATE);
+   for my $_line (@_readTemplate) {
+      if ($_line =~ /^([A-Z]+):\s+([\d\w\/]+)\n/) { $u{$1} = $2; }
+   }
+}
+
+sub checkTemplate {
+   open(TEMPLATE, "<${c_TempDir}$opt{t}") or
+     die "\n  ERROR: Can\'t read a template for usertype: $opt{t}\n  Are you sure you\'ve created proper template?\n\n";
+   my @_readTemplate = readline(*TEMPLATE);
+   my $_ccnt = 0;
+   my ($_cline,$_wlines);
+   close(TEMPLATE);
+   for my $_line (@_readTemplate) {
+      ++$_cline;
+      if ($_line !~ /^([A-Z]+):\s+([\d\w\/]+)\n/) {
+         $_wlines .= $_cline.', ';
+         ++$_ccnt;
+      }
+   }
+   if ($_ccnt==0) { print "\n   Syntax of $opt{t} template: OK\n\n" if (!$opt{a}); $checkSyntax = 0; }
+   else {
+       print "\n   I found $_ccnt error(s) [bad character(s)] at $opt{t} template, line(s): $_wlines\n\n" if (!$opt{a});
+       $checkSyntax = -1;
+       return "\n   I found $_ccnt error(s) [bad character(s)] at $opt{t} template, line(s): $_wlines\n\n" if ($opt{a});
+   }
+}
+checkTemplate() if ($opt{T} and $opt{t});
+
+sub checkGroup {
+   my $_checkgroupfile = `cat $c_GroupFile|grep ^$opt{t}`; chomp($_checkgroupfile);
+      $_checkgroupfile =~ /^$opt{t}:(.*?):(\d+)/; my $_groupid = $2;
+   if ($_checkgroupfile ne '' && $_groupid eq $u{GID}) { $checkGroup = 0; }
+   else { $checkGroup = -1; return "\n   [STOP]: Group checking error: there is a group $opt{t} with other gid!\n\n"; }
+}
+
+sub checkUser {
+  my $_tmpUser = $opt{a} || $opt{d};
+  my $_checkuserfile = `cat $c_PasswdFile|grep ^$_tmpUser`; chomp($_checkuserfile);
+  if ($_checkuserfile eq '') { $checkUser = 0; }
+  else { $checkUser = -1; return "\n   [STOP]: User checking error: user $_tmpUser exists!\n\n"; }
+}
+
+sub randPass {
+   my $_r;
+   for (1..6) { $_r .= int(rand(9)); }
+   return $_r;
+}
+
+sub checkNextUID {
+   my $_lastuid;
+   my $_tcnt = 0;
+   open(PASSWD, "<$c_PasswdFile") or die "\n   ERROR: Can\'t open $c_PasswdFile\n\n";
+   my @_readPasswdFile = readline(*PASSWD);
+   close(PASSWD);
+   for my $_u (@_readPasswdFile) {
+      if ($_u =~ /^(.*?):(.*?):(.*?):$u{GID}/) {
+         my $_tmpuid = $3;
+         if ($_tmpuid >= $u{UIDFROM} && $_tmpuid <= $u{UIDTO}) { ++$_tcnt; $_lastuid = $_tmpuid; }
+      }
+   }
+   if ($_tcnt==0) { return $u{UIDFROM}; }
+   else { return ++$_lastuid; }
+}
+
+sub addUser {
+   exit if (!$opt{t});
+   print "\n" if ($opt{v});
+
+   print "\n  1. Checking...\n\n" if ($opt{v});
+   my $_tmpErrMsg = checkTemplate();
+   if ($checkSyntax<0) { print $_tmpErrMsg; exit; }
+   print "\t=> template syntax: OK\n" if ($opt{v});
+   readTemplate();
+   $_tmpErrMsg = checkGroup();
+   if ($checkGroup<0) { print $_tmpErrMsg; exit; }
+   print "\t=> group: OK\n" if ($opt{v});
+   $_tmpErrMsg = checkUser();
+   if ($checkUser<0) { print $_tmpErrMsg; exit; }
+   print "\t=> user: OK\n" if ($opt{v});
+
+   my $_randPass = randPass();
+   my $_nextUID  = checkNextUID();
+   print "\n\n  2. Creating user...\n\n" if ($opt{v});
+   system("$cmd_useradd -u $_nextUID -g $opt{t} -d $u{HOMEDIR}$opt{a} -s $u{SHELL} -p `$cmd_openssl passwd -1 $_randPass` $opt{a}");
+   print "\t=> random password: $_randPass\n";
+  # HOMEDIR
+   system("mkdir $u{HOMEDIR}$opt{a}");
+   system("chown $opt{a}.$opt{t} $u{HOMEDIR}$opt{a}");
+   system("chmod $c_hdModes $u{HOMEDIR}$opt{a}");
+   system("touch $u{HOMEDIR}$opt{a}\/.bash_history");
+   system("chown $opt{a}:$opt{t} $u{HOMEDIR}$opt{a}\/.bash_history");
+   system("chmod 600 $u{HOMEDIR}$opt{a}\/.bash_history");
+   system("chattr +a $u{HOMEDIR}$opt{a}\/.bash_history");
+   if (-e "$u{HOMEDIR}$opt{a}" && -e "$u{HOMEDIR}$opt{a}\/.bash_history") { print "\t=> home dir ($u{HOMEDIR}$opt{a}): OK\n" if ($opt{v}); }
+  # WWW DIR
+   system("mkdir $u{HOMEDIR}$opt{a}\/$u{WWWDIR}");
+   system("chown $opt{a}.$opt{t} $u{HOMEDIR}$opt{a}\/$u{WWWDIR}");
+   system("chmod $c_wdModes $u{HOMEDIR}$opt{a}\/$u{WWWDIR}");
+   if (-e "$u{HOMEDIR}$opt{a}\/$u{WWWDIR}") { print "\t=> www dir (~\/$u{WWWDIR}): OK\n" if ($opt{v}); }
+   my $_quotaSize  = $u{QUOTA}*1024;
+   my $_quotaSize2 = ${_quotaSize}+($_quotaSize/$u{QUOTATOLERANCE});
+   my $_maxNodes   = $u{MAXNODES};
+   my $_maxNodes2  = $u{MAXNODES}+int($_maxNodes/$u{MAXNODESTOLERANCE});
+   if (!system("$cmd_setquota $opt{a} $_quotaSize $_quotaSize2 $_maxNodes $_maxNodes2 $c_quotaFS")) {
+      print "\t=> quota ($u{QUOTA}MB): OK\n" if ($opt{v});
+   } else {
+        print "\n   [STOP]: Can\'t set quota!\n\n";
+     }
+
+   print "\n" if ($opt{v});
+}
+
+sub delUser {
+   readTemplate();
+   checkUser();
+   print "\n" if ($opt{v});
+
+   if ($checkUser<0) { print "\t=> user: OK\n" if ($opt{v}); }
+   else { print "\t=> user: ERROR - username $opt{d} doesn\'t exist!\n\n" if ($opt{v}); exit; }
+   print "\t=> deleting user from database: " if ($opt{v});
+   if (!system("$cmd_userdel $opt{d}")) { print "OK\n" if ($opt{v}); } else { print "ERROR\n" if ($opt{v}); }
+   print "\t=> removing homedir: " if ($opt{v});
+   system("$cmd_chattr -a $u{HOMEDIR}$opt{d}\/.bash_history");
+   if (!system("$cmd_rm $u{HOMEDIR}$opt{d}")) { print "OK\n" if ($opt{v}); } else { print "ERROR\n" if ($opt{v}); }
+   print "\n Done. User $opt{d} has been deleted.\n";
+
+   print "\n" if ($opt{v});
+}
+
+addUser() if ($opt{a} && !$opt{d});
+delUser() if ($opt{d} && !$opt{a});
