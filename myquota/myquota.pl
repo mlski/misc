@@ -1,8 +1,7 @@
 #!/usr/bin/perl -w
 #  myquota.pl - mysql and disk space quota daemon (0.1 beta)
 #
-# Copyright (c) 2009 Michał Lewandowski, foristh@IRCNet, foristh@Upnet
-# http://michal.linux-noob.pl/myquota/
+# Copyright (c) 2009 Michał Lewandowski, foristh@IRCNet,irc.perl.org,irc.freenode.net
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
