@@ -1,1 +1,9 @@
 My public repo -- some misc stuff
+----------------------------------
+
+1. 6to4.pl - converts your public ipv4 address to ipv6 6to4 configuration
+2. aaaa.pl - checks if given ipv6 address has correct DNS entry (AAAA)
+3. ipv6parser.pl - checks correctness of given ipv6 address
+4. rev6.pl - checks revdns entry for given ipv6 address
+
+
