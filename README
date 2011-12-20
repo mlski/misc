@@ -5,5 +5,9 @@ My public repo -- some misc stuff
 2. aaaa.pl - checks if given ipv6 address has correct DNS entry (AAAA)
 3. ipv6parser.pl - checks correctness of given ipv6 address
 4. rev6.pl - checks revdns entry for given ipv6 address
+5. myquota - manage mysql quotas of system users
+6. pesel.pl - check correctness of polish social number
+7. ums - user management script (README inside directory)
 
+updated: 2011-12-20
 
