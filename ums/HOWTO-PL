@@ -1,20 +1,20 @@
- ums.pl - user management script
+ ums - user management script
 ---------------------------------
 
-Skrypt ums.pl s³u¿y do dodawania i usuwania userów. Dodawanie
-jest na tyle wygodne, ¿e opiera siê na przygotowanym szablonie.
-Usuwanie, to tylko wpisanie grupy i nazwy usera. Nic dodaæ, 
-nic uj±æ. A teraz bardziej szczegó³owo..
+Skrypt ums sÅ‚uÅ¼y do dodawania i usuwania userÃ³w. Dodawanie
+jest na tyle wygodne, Å¼e opiera siÄ™ na przygotowanym szablonie.
+Usuwanie, to tylko wpisanie grupy i nazwy usera. Nic dodaÄ‡, 
+nic ujÄ…Ä‡. A teraz bardziej szczegÃ³Å‚owo..
 
 1. Rozpoczynanie pracy
-Przegraj gdziekolwiek plik ums.pl, upewnij siê, ¿e posiadasz w
+Przegraj gdziekolwiek plik ums, upewnij siÄ™, Å¼e posiadasz w
 systemie:
   useradd, userdel, setquota, openssl, chattr, rm
 
-W skrypcie w sekcji CONFIGURATION mo¿esz ustawiæ ¶cie¿ki do ww.
-programów zmieniaj±c warto¶ci zmiennych zaczynaj±cych siê od $cmd_ .
+W skrypcie w sekcji CONFIGURATION moÅ¼esz ustawiÄ‡ Å›cieÅ¼ki do ww.
+programÃ³w zmieniajÄ…c wartoÅ›ci zmiennych zaczynajÄ…cych siÄ™ od $c_ .
 
-Teraz kilka s³ów o konfiguracji:
+Teraz kilka sÅ‚Ã³w o konfiguracji:
 
 my $c_TempDir    = './templates/';
 my $c_PasswdFile = '/etc/passwd';
@@ -23,18 +23,18 @@ my $c_hdModes    = 711;
 my $c_wdModes    = 755;
 my $c_quotaFS    = '/';
 
-S±dzê, ¿e to zrozumia³e, ale opiszê..
+SÄ…dzÄ™, Å¼e to zrozumiaÅ‚e, ale opiszÄ™..
 
- $c_TempDir - folder z szablonami, na podstawie których dodawani s±
-              userzy (wiêcej szablonach trochê ni¿ej).
- $c_PasswdFile i $c_GroupFile - ¶cie¿ki do pliku passwd i group,
-                                które zawieraj± istotne dane (jakie - wiadomo).
- $c_hdModes i $c_wdModes - uprawnianie dla katalogów (odpowiednio) u¿ytkownika
+ $c_TempDir - folder z szablonami, na podstawie ktÃ³rych dodawani sÄ…
+              userzy (wiÄ™cej szablonach trochÄ™ niÅ¼ej).
+ $c_PasswdFile i $c_GroupFile - Å›cieÅ¼ki do pliku passwd i group,
+                                ktÃ³re zawierajÄ… istotne dane (jakie - wiadomo).
+ $c_hdModes i $c_wdModes - uprawnianie dla katalogÃ³w (odpowiednio) uÅ¼ytkownika
                            i stron www.
- $c_quotaFS - system plików, na których uruchomiona jest quota.
+ $c_quotaFS - system plikÃ³w, na ktÃ³rych uruchomiona jest quota.
 
 Tyle o zmiennych. Teraz szablony.
-Przyk³adowy szablon `testums`:
+PrzykÅ‚adowy szablon `exampletemplate`:
  GID: 4000
  UIDFROM: 4000
  UIDTO: 4999
@@ -46,75 +46,73 @@ Przyk³adowy szablon `testums`:
  MAXNODES: 500
  MAXNODESTOLERANCE: 10
 
-UWAGA: nazwa grupy u¿ytkowników, dla której jest robiony szablon i nazwa pliku,
-       musz± byæ takie same, czyli je¶li mamy grupê testums to plik z szablonem
-       musi mieæ równie¿ nazwê testums.
+UWAGA: nazwa grupy uÅ¼ytkownikÃ³w, dla ktÃ³rej jest robiony szablon i nazwa pliku,
+       muszÄ… byÄ‡ takie same, czyli jeÅ›li mamy grupÄ™ testums to plik z szablonem
+       musi mieÄ‡ rÃ³wnieÅ¼ nazwÄ™ testums.
 
-A propos sk³adni.. Pierwsza pozycja od nowej linii zaczyna siê nazw± zmiennej,
-nastêpnie ':' i warto¶æ zmiennej, która mo¿e zawieraæ cyfry, litery i znak '/'.
-Linia ze zmienn± musi koñczyæ siê znakiem nowej linii.
-Je¶li nie bêd± spe³nione te warunku, wówczas skrypt przerwie swoje dzia³anie.
+A propos skÅ‚adni.. Pierwsza pozycja od nowej linii zaczyna siÄ™ nazwÄ… zmiennej,
+nastÄ™pnie ':' i wartoÅ›Ä‡ zmiennej, ktÃ³ra moÅ¼e zawieraÄ‡ cyfry, litery i znak '/'.
+Linia ze zmiennÄ… musi koÅ„czyÄ‡ siÄ™ znakiem nowej linii.
+JeÅ›li nie bÄ™dÄ… speÅ‚nione te warunku, wÃ³wczas skrypt przerwie swoje dziaÅ‚anie.
 
-Ok, teraz o szablonie. Jak widaæ jest bardzo prosty - nazwa zmiennej i warto¶æ.
- GID - numer gid grupy, dla której tworzony jest szablon.
- UIDFROM - od jakiego numeru przypisywaæ uidy u¿ytkownikom.
- UIDTO - maksymalny uid dla u¿ytkownika z tej grupy.
- HOMEDIR - katalog domowy u¿ytkownika.
- WWWDIR - katalog, w którym bêdzie przechowywa³ pliki www.
- SHELL - ¶cie¿ka do pow³oki systemowej.
- QUOTA - limit przestrzeni dyskowej wyra¿ony w MB (soft limit).
- QUOTATOLERANCE - ilo¶æ w procentach, która zostanie dodana do QUOTY, aby ustawiæ
-                  hard limit (10 = 10%, czyli je¶li quota wynosi 15MB, to hard limit
+Ok, teraz o szablonie. Jak widaÄ‡ jest bardzo prosty - nazwa zmiennej i wartoÅ›Ä‡.
+ GID - numer gid grupy, dla ktÃ³rej tworzony jest szablon.
+ UIDFROM - od jakiego numeru przypisywaÄ‡ uidy uÅ¼ytkownikom.
+ UIDTO - maksymalny uid dla uÅ¼ytkownika z tej grupy.
+ HOMEDIR - katalog domowy uÅ¼ytkownika.
+ WWWDIR - katalog, w ktÃ³rym bÄ™dzie przechowywaÅ‚ pliki www.
+ SHELL - Å›cieÅ¼ka do powÅ‚oki systemowej.
+ QUOTA - limit przestrzeni dyskowej wyraÅ¼ony w MB (soft limit).
+ QUOTATOLERANCE - iloÅ›Ä‡ w procentach, ktÃ³ra zostanie dodana do QUOTY, aby ustawiÄ‡
+                  hard limit (10 = 10%, czyli jeÅ›li quota wynosi 15MB, to hard limit
                   wyniesie 16,5MB).
- MAXNODES - maksymalna liczba plików, które mo¿e mieæ w swoim katalogu u¿ytkownik.
- MAXNODESTOLERANCE - sytuacja taka sama, jak z quot±, czyli liczba x procent, która
-                     zostanie dodana do MAXNODES, aby ustawiæ hard limit.
+ MAXNODES - maksymalna liczba plikÃ³w, ktÃ³re moÅ¼e mieÄ‡ w swoim katalogu uÅ¼ytkownik.
+ MAXNODESTOLERANCE - sytuacja taka sama, jak z quotÄ…, czyli liczba x procent, ktÃ³ra
+                     zostanie dodana do MAXNODES, aby ustawiÄ‡ hard limit.
 
 
 
-2. U¿ywanie..
+2. UÅ¼ywanie..
 
-Zanim zaczniemy dodawaæ nowych userów oczywi¶cie musimy przygotowaæ szablon, ale nie
-mo¿na zapomnieæ o stworzeniu nowej grupy i katalogu dla niej:
+Zanim zaczniemy dodawaÄ‡ nowych userÃ³w oczywiÅ›cie musimy przygotowaÄ‡ szablon, ale nie
+moÅ¼na zapomnieÄ‡ o stworzeniu nowej grupy i katalogu dla niej:
 
   # groupadd -g 4000 testums
   # mkdir /home/users/testums
   # chown root.testums /home/users/testums
   # chmod 711 /home/users/testums
 
-Teraz mo¿na ju¿ bez problemu dodawaæ nowych userów:
+Teraz moÅ¼na juÅ¼ bez problemu dodawaÄ‡ nowych userÃ³w:
 
- ./ums.pl -t type -(a|d) username [-T] [-v] [-h]
+ ./ums -t type -(a|d) username [-T] [-v] [-h]
 
-        -t      : typ u¿ytkownika, a w³a¶ciwie grupa/szablon
-        -a      : ustawia nazwê nowego u¿ytkownika
-        -d      : usuwa u¿ytkownika na podstawie podanej nazwy
-        -T      : sprawdza sk³adniê szablonu (nale¿y u¿yæ równie¿ opcji -t)
+        -t      : typ uÅ¼ytkownika, a wÅ‚aÅ›ciwie grupa/szablon
+        -a      : ustawia nazwÄ™ nowego uÅ¼ytkownika
+        -d      : usuwa uÅ¼ytkownika na podstawie podanej nazwy
+        -T      : sprawdza skÅ‚adniÄ™ szablonu (naleÅ¼y uÅ¼yÄ‡ rÃ³wnieÅ¼ opcji -t)
         -v      : verbose mode, czyli poinformuje nas, co w tej chwili robi
         -h      : pomoc..
 
-Przyk³ady:
+PrzykÅ‚ady:
 
-  a. sprawdzenie sk³adni: ./ums.pl -T -t testums
-  b. dodanie nowego u¿ytkownika: ./ums.pl -v -a ktos -t testums
-  c. usuwanie u¿ytkownika: ./ums.pl -t testums -d ktos -v
+  a. sprawdzenie skÅ‚adni: ./ums -T -t testums
+  b. dodanie nowego uÅ¼ytkownika: ./ums -v -a ktos -t testums
+  c. usuwanie uÅ¼ytkownika: ./ums -t testums -d ktos -v
 
 
-A jakie has³o? Hm, takie, jakie bêdzie widoczne w polu `random passowrd`, które
-zwróci skrypt. Has³o jest stworzone z 6 cyfr (0-9) i kodowane do odpowiedniej dla
+A jakie hasÅ‚o? Hm, takie, jakie bÄ™dzie widoczne w polu `random passowrd`, ktÃ³re
+zwrÃ³ci skrypt. HasÅ‚o jest stworzone z 6 cyfr (0-9) i kodowane do odpowiedniej dla
 uniksa postaci przy pomocy programu openssl.
 
 
 3. Podsumowanie
 
-Skrypt zosta³ napisany w dosyæ szybkim tempie. Z moich na prêdce przeprowadzonych
-testów wynika, ¿e dzia³a poprawnie, jednak wdziêczny bêdê za wszelkie informacje
-dot. dzia³ania.
-ums'a napisa³em wy³±cznie dla wygody nie zwracaj±c uwagi na rozbudowan± funkcjonalno¶æ -
-- mo¿e w przysz³o¶ci.
-I to by by³o na tyle...
-
-$ logout
+Skrypt zostaÅ‚ napisany w dosyÄ‡ szybkim tempie. Z moich na prÄ™dce przeprowadzonych
+testÃ³w wynika, Å¼e dziaÅ‚a poprawnie, jednak wdziÄ™czny bÄ™dÄ™ za wszelkie informacje nt.
+jego funkcjonalnoÅ›ci.
+ums'a napisaÅ‚em wyÅ‚Ä…cznie dla wygody nie zwracajÄ…c uwagi na rozbudowanÄ… funkcjonalnoÅ›Ä‡ -
+- moÅ¼e w przyszÅ‚oÅ›ci.
+I to by byÅ‚o na tyle...
 
 --------------------------------------------
-kontakt: foristh@IRCNet, foristh@Upnet, mlski[at]wp[dot]pl
+kontakt: foristh@IRCNet,irc.perl.org,irc.freenode.net
